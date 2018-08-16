@@ -7,6 +7,8 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.widget.TextView;
 
+import com.tal.kisen.slidecardpager.transforms.ZoomTransforms;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -19,6 +21,7 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         touchCardView = findViewById(R.id.touch_view);
+        touchCardView.setTransforms(new ZoomTransforms());
         touchCardView.setAdapter(new SlideCardPager.CardAdapter<CardData>(R.layout.item_card, createList()) {
             @Override
             protected void convert(SlideCardPager.CardHolder cardView, CardData data) {

@@ -8,6 +8,7 @@ import android.animation.ValueAnimator;
 import android.content.Context;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
+import android.support.annotation.Size;
 import android.util.AttributeSet;
 import android.util.SparseArray;
 import android.view.LayoutInflater;
@@ -40,6 +41,7 @@ public class SlideCardPager extends ViewGroup {
     private CardTransforms mCardTransforms;
     private List<OnCardChangeListener> mCardChangeListeners;
     private ItemSelectedInterceptor mItemSelectInterceptor;
+    private int[] mChildSize = new int[4];
 
     public SlideCardPager(Context context) {
         this(context, null);
@@ -196,26 +198,29 @@ public class SlideCardPager extends ViewGroup {
             int childHeight = childAt.getMeasuredHeight();
             switch (state) {
                 case CardState.STATE_SELECTED:
-                    childAt.layout(width / 2 - childWidth / 2,
-                            0,
-                            width / 2 + childWidth / 2,
-                            childHeight);
+                    mChildSize[0] = width / 2 - childWidth / 2;
+                    mChildSize[1] = 0;
+                    mChildSize[2] = width / 2 + childWidth / 2;
+                    mChildSize[3] = childHeight;
                     break;
                 case CardState.STATE_UNSELECTED_PRE:
                 case CardState.STATE_HIDE_LEFT:
-                    childAt.layout(width / 2 - childWidth,
-                            0,
-                            width / 2,
-                            childHeight);
+                    mChildSize[0] = width / 2 - childWidth;
+                    mChildSize[1] = 0;
+                    mChildSize[2] = width / 2;
+                    mChildSize[3] = childHeight;
                     break;
                 case CardState.STATE_UNSELECTED_NEXT:
                 case CardState.STATE_HIDE_RIGHT:
-                    childAt.layout(width / 2,
-                            0,
-                            width / 2 + childWidth,
-                            childHeight);
+                    mChildSize[0] = width / 2;
+                    mChildSize[1] = 0;
+                    mChildSize[2] = width / 2 + childWidth;
+                    mChildSize[3] = childHeight;
                     break;
             }
+            if (mCardTransforms != null)
+                mChildSize = mCardTransforms.calculateLayout(childAt, state, mChildSize);
+            childAt.layout(mChildSize[0], mChildSize[1], mChildSize[2], mChildSize[3]);
         }
     }
 
@@ -531,6 +536,10 @@ public class SlideCardPager extends ViewGroup {
         populate(pos);
     }
 
+    public CardHolder getCurrentCardHolder() {
+        return getCardHolderByAdapterPos(mCurrentPos);
+    }
+
     /**
      * Holder的管理池，用于Holder的回收和复用
      * 其实主要回收的是View，类似于RecyclerView的回收机制，此处简单实现
@@ -586,17 +595,21 @@ public class SlideCardPager extends ViewGroup {
      */
     public interface CardTransforms {
 
-        void transforms(View view, int currentState, int oldState, float percent);
+        void transforms(CardHolder holder, int currentState, int oldState, float percent);
 
         TimeInterpolator getInterpolator(int currentState, int oldState);
 
-        float[] getPivotPoint(View view);
+        @Size(2)
+        float[] getPivotPointOnMeasureFinish(View view);
 
         long getDuration(int currentState, int oldState);
 
-        int makeGroupHeight(int groupHeight, SlideCardPager touchCardView);
+        int makeGroupHeight(int groupHeight, SlideCardPager slideCardPager);
 
-        int makeGroupWidth(int groupWidth, SlideCardPager touchCardView);
+        int makeGroupWidth(int groupWidth, SlideCardPager slideCardPager);
+
+        @Size(4)
+        int[] calculateLayout(View child, int state, @Size(4) int[] size);
     }
 
     /**
@@ -605,23 +618,24 @@ public class SlideCardPager extends ViewGroup {
     private static class DefaultCardTransforms implements CardTransforms {
 
         @Override
-        public void transforms(View view, int currentState, int oldState, float percent) {
+        public void transforms(CardHolder holder, int currentState, int oldState, float percent) {
             switch (currentState) {
                 case CardState.STATE_SELECTED:
-                    select(view, oldState, percent);
+                    select(holder, oldState, percent);
                     break;
                 case CardState.STATE_UNSELECTED_PRE:
                 case CardState.STATE_UNSELECTED_NEXT:
-                    unSelect(view, currentState, oldState, percent);
+                    unSelect(holder, currentState, oldState, percent);
                     break;
                 case CardState.STATE_HIDE_LEFT:
                 case CardState.STATE_HIDE_RIGHT:
-                    hide(view, currentState, oldState, percent);
+                    hide(holder, currentState, oldState, percent);
                     break;
             }
         }
 
-        private void select(View view, float oldState, float percent) {
+        private void select(CardHolder holder, float oldState, float percent) {
+            View view = holder.getContentView();
             view.setRotation(0);
             view.setAlpha(1);
 
@@ -629,15 +643,14 @@ public class SlideCardPager extends ViewGroup {
             view.setScaleX(scale);
             view.setScaleY(scale);
 
-            int targetX = view.getWidth() / 2;
-            if (view instanceof CardHolder)
-                targetX = ((CardHolder) view).getViewWidth() / 2;
+            int targetX = holder.getViewWidth() / 2;
 
             int sign = oldState == CardState.STATE_UNSELECTED_PRE ? 1 : -1;
             view.setTranslationX(-targetX * (1 - percent) * sign);
         }
 
-        private void unSelect(View view, int currentState, int oldState, float percent) {
+        private void unSelect(CardHolder holder, int currentState, int oldState, float percent) {
+            View view = holder.getContentView();
             int sign = currentState == CardState.STATE_UNSELECTED_NEXT ? 1 : -1;
             if (oldState == CardState.STATE_SELECTED) {
                 view.setRotation(ANGLE * percent * sign);
@@ -647,9 +660,7 @@ public class SlideCardPager extends ViewGroup {
                 view.setScaleX(scale);
                 view.setScaleY(scale);
 
-                int targetX = view.getWidth() / 2;
-                if (view instanceof CardHolder)
-                    targetX = ((CardHolder) view).getViewWidth() / 2;
+                int targetX = holder.getViewWidth() / 2;
 
                 view.setTranslationX(-targetX * (1 - percent) * sign);
             } else {
@@ -661,7 +672,8 @@ public class SlideCardPager extends ViewGroup {
             }
         }
 
-        private void hide(View view, int currentState, int oldState, float percent) {
+        private void hide(CardHolder holder, int currentState, int oldState, float percent) {
+            View view = holder.getContentView();
             int sign = currentState == CardState.STATE_HIDE_LEFT ? -1 : 1;
             view.setRotation(ANGLE * sign);
             if (oldState >= 3) {
@@ -679,8 +691,9 @@ public class SlideCardPager extends ViewGroup {
             return null;
         }
 
+        @Size(2)
         @Override
-        public float[] getPivotPoint(View view) {
+        public float[] getPivotPointOnMeasureFinish(View view) {
             return new float[]{view.getMeasuredWidth() / 2, view.getMeasuredHeight()};
         }
 
@@ -720,35 +733,11 @@ public class SlideCardPager extends ViewGroup {
             }
             return groupWidth + appendWidth * 2;
         }
-    }
 
-    /**
-     * Holder接口，应该定义成抽象类，后期完善吧
-     */
-    public interface CardHolder {
-
-        CardState getViewCardState();
-
-        @NonNull
-        View getContentView();
-
-        void setTransforms(CardTransforms transforms);
-
-        void measureFinish();
-
-        void selected(boolean anim);
-
-        void unSelected(boolean anim, int pre);
-
-        void hide(boolean anim, int pre);
-
-        void recycle();
-
-        int getViewWidth();
-
-        boolean isRunningAnim();
-
-        <T extends View> T getView(int viewId);
+        @Override
+        public int[] calculateLayout(View child, int state, int[] size) {
+            return size;
+        }
     }
 
     /**
@@ -841,6 +830,7 @@ public class SlideCardPager extends ViewGroup {
      */
     public interface Observer {
         void change();
+
         void notifyItem(int position);
     }
 
@@ -893,20 +883,84 @@ public class SlideCardPager extends ViewGroup {
                 state = STATE_HIDE_RIGHT;
         }
 
-        public void recycle() {
-            state = STATE_IDLE;
-        }
-
-        public boolean isRecycled() {
-            return state == STATE_IDLE;
-        }
-
         public int getState() {
             return state;
         }
 
-        public int getGroupPosition() {
+        void recycle() {
+            state = STATE_IDLE;
+        }
+
+        boolean isRecycled() {
+            return state == STATE_IDLE;
+        }
+
+        int getGroupPosition() {
             return isRecycled() ? -1 : position;
+        }
+    }
+
+
+    /**
+     * Holder接口，应该定义成抽象类，后期完善吧
+     */
+    public static abstract class CardHolder {
+
+        protected CardState mCurrentState = new CardState();
+        protected View mContentView;
+        protected CardTransforms mCardTransforms;
+        protected int viewWidth;
+
+        public CardHolder(@NonNull View content) {
+            mContentView = content;
+        }
+
+        public CardState getViewCardState() {
+            return mCurrentState;
+        }
+
+        @NonNull
+        public View getContentView() {
+            return mContentView;
+        }
+
+        private void setTransforms(CardTransforms transforms) {
+            mCardTransforms = transforms;
+        }
+
+        void measureFinish() {
+            viewWidth = mContentView.getMeasuredWidth();
+            if (mCardTransforms != null) {
+                float[] pivotPoint = mCardTransforms.getPivotPointOnMeasureFinish(mContentView);
+                setPivot(pivotPoint);
+            }
+        }
+
+        private void setPivot(float[] pivot) {
+            mContentView.setPivotX(pivot[0]);
+            mContentView.setPivotY(pivot[1]);
+        }
+
+        abstract void selected(boolean anim);
+
+        abstract void unSelected(boolean anim, int pre);
+
+        abstract void hide(boolean anim, int pre);
+
+        void recycle() {
+            mCurrentState.recycle();
+        }
+
+        public int getAdapterPosition() {
+            return mCurrentState.getGroupPosition();
+        }
+
+        public abstract boolean isRunningAnim();
+
+        public abstract int getViewWidth();
+
+        public <T extends View> T getView(int viewId) {
+            return mContentView.findViewById(viewId);
         }
     }
 
@@ -914,13 +968,9 @@ public class SlideCardPager extends ViewGroup {
      * 默认ViewHolder类
      * 集成Transforms
      */
-    public static class CardViewHolder implements CardHolder {
+    private static class CardViewHolder extends CardHolder {
 
-        private View mContentView;
-        private CardState mCurrentState = new CardState();
         private ValueAnimator mValueAnimator;
-        private CardTransforms mCardTransforms;
-        private int viewWidth;
         private Animator.AnimatorListener mAnimListener = new AnimatorListenerAdapter() {
 
 //            private float[] pivotPoint;
@@ -938,40 +988,15 @@ public class SlideCardPager extends ViewGroup {
             }
         };
 
-        public CardViewHolder(ViewGroup parent, int viewId) {
-            mContentView = LayoutInflater.from(parent.getContext()).inflate(viewId, parent, false);
+        CardViewHolder(ViewGroup parent, int viewId) {
+            super(LayoutInflater.from(parent.getContext()).inflate(viewId, parent, false));
             mValueAnimator = ObjectAnimator.ofFloat(0, 1);
             mContentView.setClickable(true);
         }
 
         @Override
-        public void measureFinish() {
-            viewWidth = mContentView.getMeasuredWidth();
-            if (mCardTransforms != null) {
-                float[] pivotPoint = mCardTransforms.getPivotPoint(mContentView);
-                setPivot(pivotPoint);
-            }
-        }
-
-        @Override
         public int getViewWidth() {
             return viewWidth;
-        }
-
-        @NonNull
-        @Override
-        public View getContentView() {
-            return mContentView;
-        }
-
-        @Override
-        public CardState getViewCardState() {
-            return mCurrentState;
-        }
-
-        @Override
-        public void setTransforms(CardTransforms transforms) {
-            mCardTransforms = transforms;
         }
 
         @Override
@@ -1008,7 +1033,7 @@ public class SlideCardPager extends ViewGroup {
                     @Override
                     public void onAnimationUpdate(ValueAnimator animation) {
                         float percent = (float) animation.getAnimatedValue();
-                        mCardTransforms.transforms(mContentView, state, oldState, percent);
+                        mCardTransforms.transforms(CardViewHolder.this, state, oldState, percent);
                     }
                 });
                 mValueAnimator.setInterpolator(mCardTransforms.getInterpolator(state, oldState));
@@ -1016,18 +1041,8 @@ public class SlideCardPager extends ViewGroup {
                 mValueAnimator.addListener(mAnimListener);
                 mValueAnimator.start();
             } else {
-                mCardTransforms.transforms(mContentView, state, oldState, 1);
+                mCardTransforms.transforms(CardViewHolder.this, state, oldState, 1);
             }
-        }
-
-        private void setPivot(float[] pivot) {
-            mContentView.setPivotX(pivot[0]);
-            mContentView.setPivotY(pivot[1]);
-        }
-
-        @Override
-        public void recycle() {
-            mCurrentState.recycle();
         }
 
         @Override
@@ -1035,10 +1050,6 @@ public class SlideCardPager extends ViewGroup {
             return mValueAnimator.isRunning();
         }
 
-        @Override
-        public <T extends View> T getView(int viewId) {
-            return mContentView.findViewById(viewId);
-        }
     }
 
     /**
