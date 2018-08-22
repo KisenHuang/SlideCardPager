@@ -13,28 +13,17 @@ import com.tal.kisen.slidecardpager.SlideCardPager;
  * time: 2018/8/16 下午5:51
  */
 
-public class ZoomTransforms implements SlideCardPager.CardTransforms {
+public class ZoomTransforms implements SlideCardPager.CardTransforms, TransformsHelper.TransformCall {
 
     private static final float SCALE = 0.8f;
 
     @Override
     public void transforms(SlideCardPager.CardHolder holder, int currentState, int oldState, float percent) {
-        switch (currentState) {
-            case SlideCardPager.CardState.STATE_SELECTED:
-                select(holder, oldState, percent);
-                break;
-            case SlideCardPager.CardState.STATE_UNSELECTED_PRE:
-            case SlideCardPager.CardState.STATE_UNSELECTED_NEXT:
-                unSelect(holder, currentState, oldState, percent);
-                break;
-            case SlideCardPager.CardState.STATE_HIDE_LEFT:
-            case SlideCardPager.CardState.STATE_HIDE_RIGHT:
-                hide(holder, currentState, oldState, percent);
-                break;
-        }
+        TransformsHelper.transform(holder, currentState, oldState, percent, this);
     }
 
-    private void select(SlideCardPager.CardHolder holder, float oldState, float percent) {
+    @Override
+    public void select(SlideCardPager.CardHolder holder, int oldState, float percent) {
         View view = holder.getContentView();
         view.setAlpha(1);
 
@@ -44,11 +33,12 @@ public class ZoomTransforms implements SlideCardPager.CardTransforms {
 
         int targetX = holder.getViewWidth() / 2;
 
-        int sign = oldState == SlideCardPager.CardState.STATE_UNSELECTED_PRE ? 1 : -1;
-        view.setTranslationX(-targetX * (1 - percent) * sign);
+        int sign = oldState == SlideCardPager.CardState.STATE_UNSELECTED_NEXT ? 1 : -1;
+        view.setTranslationX(targetX * (1 - percent) * sign);
     }
 
-    private void unSelect(SlideCardPager.CardHolder holder, int currentState, int oldState, float percent) {
+    @Override
+    public void unSelect(SlideCardPager.CardHolder holder, int currentState, int oldState, float percent) {
         View view = holder.getContentView();
         view.setAlpha(1);
         int sign = currentState == SlideCardPager.CardState.STATE_UNSELECTED_NEXT ? 1 : -1;
@@ -68,7 +58,8 @@ public class ZoomTransforms implements SlideCardPager.CardTransforms {
         }
     }
 
-    private void hide(SlideCardPager.CardHolder holder, int currentState, int oldState, float percent) {
+    @Override
+    public void hide(SlideCardPager.CardHolder holder, int currentState, int oldState, float percent) {
         View view = holder.getContentView();
         if (oldState >= 3) {
             view.setAlpha(1);
@@ -88,21 +79,22 @@ public class ZoomTransforms implements SlideCardPager.CardTransforms {
     @Size(2)
     @Override
     public float[] getPivotPointOnMeasureFinish(View view) {
-        return new float[]{view.getMeasuredWidth() / 2, view.getMeasuredHeight() / 2};
+        int[] viewSize = TransformsHelper.getViewMeasureSize(view);
+        return new float[]{viewSize[0] / 2, viewSize[1] / 2};
     }
 
     @Override
     public long getDuration(int currentState, int oldState) {
-        return 400;
+        return TransformsHelper.DURATION;
     }
 
     @Override
-    public int makeGroupHeight(int groupHeight, SlideCardPager slideCardPager) {
-        return groupHeight;
+    public int calculateGroupHeight(int groupHeight, SlideCardPager slideCardPager) {
+        return TransformsHelper.calculateDefGroupSize(groupHeight);
     }
 
     @Override
-    public int makeGroupWidth(int groupWidth, SlideCardPager slideCardPager) {
+    public int calculateGroupWidth(int groupWidth, SlideCardPager slideCardPager) {
         int appendWidth = 0;
         SlideCardPager.CardHolder currentCardHolder = slideCardPager.getCurrentCardHolder();
         if (currentCardHolder != null)

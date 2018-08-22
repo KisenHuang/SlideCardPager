@@ -9,7 +9,9 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
-        <activity android:name="com.tal.kisen.slidecardpager.MainActivity">
+        <activity android:name="com.tal.kisen.slidecardpager.MainActivity"
+            android:configChanges="orientation|screenLayout|keyboardHidden"
+            android:screenOrientation="sensorLandscape">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 

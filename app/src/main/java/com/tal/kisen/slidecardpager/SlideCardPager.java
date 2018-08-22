@@ -16,6 +16,8 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 
+import com.tal.kisen.slidecardpager.transforms.FanPageTransforms;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -28,9 +30,6 @@ import java.util.List;
 
 public class SlideCardPager extends ViewGroup {
 
-    private static final int ANGLE = 15;
-    private static final float ALPHA = 0.7f;
-    private static final float SCALE = 0.9f;
     private static final float MOVE_SIZE = 100;
     private int mCurrentPos = -1;
     private CardAdapter mCardAdapter;
@@ -53,7 +52,7 @@ public class SlideCardPager extends ViewGroup {
 
     public SlideCardPager(Context context, AttributeSet attrs, int defStyleAttr) {
         super(context, attrs, defStyleAttr);
-        mCardTransforms = new DefaultCardTransforms();
+        mCardTransforms = new FanPageTransforms();
     }
 
     @Override
@@ -117,8 +116,11 @@ public class SlideCardPager extends ViewGroup {
      * @param transforms
      */
     public void setTransforms(CardTransforms transforms) {
-        if (transforms != null && mCardTransforms != transforms)
+        if (transforms != null && mCardTransforms != transforms) {
             mCardTransforms = transforms;
+            removeAllViews();
+            setCurrent(0);
+        }
     }
 
     public void setOnSelectInterceptor(ItemSelectedInterceptor interceptor) {
@@ -162,7 +164,8 @@ public class SlideCardPager extends ViewGroup {
                 if (holder.getViewCardState().state == CardState.STATE_UNSELECTED_PRE
                         || holder.getViewCardState().state == CardState.STATE_UNSELECTED_NEXT) {
                     MarginLayoutParams layoutParams = (MarginLayoutParams) childAt.getLayoutParams();
-                    groupWidth += childAt.getMeasuredWidth() + layoutParams.leftMargin + layoutParams.rightMargin;
+                    groupWidth = childAt.getMeasuredWidth() + layoutParams.leftMargin + layoutParams.rightMargin;
+                    groupWidth = 2 * groupWidth;
                 }
             }
         }
@@ -170,9 +173,9 @@ public class SlideCardPager extends ViewGroup {
             groupWidth += getPaddingLeft() + getPaddingRight();
         if (mCardTransforms != null) {
             if (needComputeHeight)
-                groupHeight = mCardTransforms.makeGroupHeight(groupHeight, this);
+                groupHeight = mCardTransforms.calculateGroupHeight(groupHeight, this);
             if (needComputeWidth)
-                groupWidth = mCardTransforms.makeGroupWidth(groupWidth, this);
+                groupWidth = mCardTransforms.calculateGroupWidth(groupWidth, this);
         }
         setMeasuredDimension(MeasureSpec.makeMeasureSpec(groupWidth, widthMode),
                 MeasureSpec.makeMeasureSpec(groupHeight, heightMode));
@@ -180,6 +183,10 @@ public class SlideCardPager extends ViewGroup {
 
     private CardHolder getCardHolderByGroupPos(int pos) {
         return mCardRecyclePool.getHolderByView(getChildAt(pos));
+    }
+
+    public CardHolder getChildHolder(int pos) {
+        return getCardHolderByGroupPos(pos);
     }
 
     private CardHolder getCardHolderByAdapterPos(int pos) {
@@ -490,9 +497,9 @@ public class SlideCardPager extends ViewGroup {
             cardHolder = poolView;
         } else {
             cardHolder = mCardAdapter.createCardViewHolder(this, pos);
-            cardHolder.setTransforms(mCardTransforms);
             mCardRecyclePool.addRecycleViewHolder(cardHolder);
         }
+        cardHolder.setTransforms(mCardTransforms);
         return cardHolder;
     }
 
@@ -595,149 +602,62 @@ public class SlideCardPager extends ViewGroup {
      */
     public interface CardTransforms {
 
+        /**
+         * 动画执行时Update方法
+         * <p>
+         * 注意：
+         * 执行动画时，所有View的状态已经更新
+         * View状态以currentState为准
+         * 此处在计算View位置的时候，View的默认位置是当前状态currentState的位置也就是切换之后的位置
+         * </p>
+         *
+         * @param holder       CardHolder 可以从其中获取View信息
+         * @param currentState 当前卡片的状态
+         * @param oldState     切换之前卡片的状态
+         * @param percent      当前动画执行百分比
+         */
         void transforms(CardHolder holder, int currentState, int oldState, float percent);
 
+        /**
+         * 添加动画时间拦截器
+         */
         TimeInterpolator getInterpolator(int currentState, int oldState);
 
+        /**
+         * 获取View动画处理的中心点
+         * 该方法在ViewOnMeasure后调用
+         */
         @Size(2)
         float[] getPivotPointOnMeasureFinish(View view);
 
+        /**
+         * 获取动画执行时间
+         */
         long getDuration(int currentState, int oldState);
 
-        int makeGroupHeight(int groupHeight, SlideCardPager slideCardPager);
+        /**
+         * 根据子布局计算父布局高度
+         * 如果父布局设置的是固定高度或match_parent则不会调用该方法
+         * @param groupHeight 默认父布局高度
+         */
+        int calculateGroupHeight(int groupHeight, SlideCardPager slideCardPager);
 
-        int makeGroupWidth(int groupWidth, SlideCardPager slideCardPager);
+        /**
+         * 根据子布局计算父布局宽度
+         * 如果父布局设置的是固定宽度或match_parent则不会调用该方法
+         * @param groupWidth 默认父布局宽度
+         */
+        int calculateGroupWidth(int groupWidth, SlideCardPager slideCardPager);
 
+        /**
+         * 该方法在父布局的onLayout时调用，需要子View针对自己的情况自己调整size
+         * @param child 子View
+         * @param state View的状态
+         * @param size view的左上右下
+         * @return 修正后的size
+         */
         @Size(4)
         int[] calculateLayout(View child, int state, @Size(4) int[] size);
-    }
-
-    /**
-     * 默认实现切换效果
-     */
-    private static class DefaultCardTransforms implements CardTransforms {
-
-        @Override
-        public void transforms(CardHolder holder, int currentState, int oldState, float percent) {
-            switch (currentState) {
-                case CardState.STATE_SELECTED:
-                    select(holder, oldState, percent);
-                    break;
-                case CardState.STATE_UNSELECTED_PRE:
-                case CardState.STATE_UNSELECTED_NEXT:
-                    unSelect(holder, currentState, oldState, percent);
-                    break;
-                case CardState.STATE_HIDE_LEFT:
-                case CardState.STATE_HIDE_RIGHT:
-                    hide(holder, currentState, oldState, percent);
-                    break;
-            }
-        }
-
-        private void select(CardHolder holder, float oldState, float percent) {
-            View view = holder.getContentView();
-            view.setRotation(0);
-            view.setAlpha(1);
-
-            float scale = (SCALE + (1 - SCALE) * percent);
-            view.setScaleX(scale);
-            view.setScaleY(scale);
-
-            int targetX = holder.getViewWidth() / 2;
-
-            int sign = oldState == CardState.STATE_UNSELECTED_PRE ? 1 : -1;
-            view.setTranslationX(-targetX * (1 - percent) * sign);
-        }
-
-        private void unSelect(CardHolder holder, int currentState, int oldState, float percent) {
-            View view = holder.getContentView();
-            int sign = currentState == CardState.STATE_UNSELECTED_NEXT ? 1 : -1;
-            if (oldState == CardState.STATE_SELECTED) {
-                view.setRotation(ANGLE * percent * sign);
-                view.setAlpha(1 - (1 - ALPHA) * percent);
-
-                float scale = 1 - (1 - SCALE) * percent;
-                view.setScaleX(scale);
-                view.setScaleY(scale);
-
-                int targetX = holder.getViewWidth() / 2;
-
-                view.setTranslationX(-targetX * (1 - percent) * sign);
-            } else {
-                view.setRotation(ANGLE * sign);
-                view.setAlpha(1 - (1 - ALPHA) * percent);
-                view.setScaleX(SCALE);
-                view.setScaleY(SCALE);
-                view.setTranslationX(0);
-            }
-        }
-
-        private void hide(CardHolder holder, int currentState, int oldState, float percent) {
-            View view = holder.getContentView();
-            int sign = currentState == CardState.STATE_HIDE_LEFT ? -1 : 1;
-            view.setRotation(ANGLE * sign);
-            if (oldState >= 3) {
-                view.setAlpha(ALPHA * (1 - percent));
-            } else {
-                view.setAlpha(0);
-            }
-            view.setScaleX(SCALE);
-            view.setScaleY(SCALE);
-            view.setTranslationX(0);
-        }
-
-        @Override
-        public TimeInterpolator getInterpolator(int currentState, int oldState) {
-            return null;
-        }
-
-        @Size(2)
-        @Override
-        public float[] getPivotPointOnMeasureFinish(View view) {
-            return new float[]{view.getMeasuredWidth() / 2, view.getMeasuredHeight()};
-        }
-
-        @Override
-        public long getDuration(int currentState, int oldState) {
-            return 400;
-        }
-
-        @Override
-        public int makeGroupHeight(int groupHeight, SlideCardPager touchCardView) {
-            int appendHeight = 0;
-            for (int i = 0; i < touchCardView.getChildCount(); i++) {
-                CardHolder cardHolder = touchCardView.getCardHolderByGroupPos(i);
-                int state = cardHolder.getViewCardState().state;
-                if (state == CardState.STATE_UNSELECTED_PRE
-                        || state == CardState.STATE_UNSELECTED_NEXT) {
-                    appendHeight = (int) (Math.sin(ANGLE / 180f * Math.PI) *
-                            cardHolder.getContentView().getMeasuredWidth() / 2);
-                    break;
-                }
-            }
-            return groupHeight + appendHeight;
-        }
-
-        @Override
-        public int makeGroupWidth(int groupWidth, SlideCardPager touchCardView) {
-            int appendWidth = 0;
-            for (int i = 0; i < touchCardView.getChildCount(); i++) {
-                CardHolder cardHolder = touchCardView.getCardHolderByGroupPos(i);
-                int viewCardState = cardHolder.getViewCardState().state;
-                if (viewCardState == CardState.STATE_UNSELECTED_PRE
-                        || viewCardState == CardState.STATE_UNSELECTED_NEXT) {
-                    appendWidth = (int) (Math.sin(ANGLE / 180f * Math.PI) *
-                            cardHolder.getContentView().getMeasuredHeight());
-                    break;
-                }
-            }
-            return groupWidth + appendWidth * 2;
-        }
-
-        @Override
-        public int[] calculateLayout(View child, int state, int[] size) {
-            return size;
-        }
     }
 
     /**
