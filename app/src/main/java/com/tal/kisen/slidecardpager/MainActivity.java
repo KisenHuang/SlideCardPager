@@ -8,6 +8,8 @@ import android.view.View;
 import android.widget.TextView;
 
 import com.kisen.slidecard.SlideCardPager;
+import com.kisen.slidecard.transforms.BoomTransforms;
+import com.kisen.slidecard.transforms.FanPageTransforms;
 import com.kisen.slidecard.transforms.ZoomTransforms;
 
 import java.util.ArrayList;

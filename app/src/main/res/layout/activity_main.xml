@@ -5,7 +5,7 @@
     android:layout_height="match_parent"
     tools:context="com.tal.kisen.slidecardpager.MainActivity">
 
-    <com.tal.kisen.slidecardpager.SlideCardPager
+    <com.kisen.slidecard.SlideCardPager
         android:id="@+id/touch_view"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content" />
