@@ -1,4 +1,4 @@
-package com.tal.kisen.slidecardpager;
+package com.kisen.slidecard;
 
 import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
@@ -25,12 +25,8 @@ import java.util.List;
  * email: KisenHuang@163.com
  * time: 2018/8/6 下午2:48
  */
-
 public class SlideCardPager extends ViewGroup {
 
-    private static final int ANGLE = 15;
-    private static final float ALPHA = 0.7f;
-    private static final float SCALE = 0.9f;
     private static final float MOVE_SIZE = 100;
     private int mCurrentPos = -1;
     private CardAdapter mCardAdapter;
@@ -53,7 +49,6 @@ public class SlideCardPager extends ViewGroup {
 
     public SlideCardPager(Context context, AttributeSet attrs, int defStyleAttr) {
         super(context, attrs, defStyleAttr);
-        mCardTransforms = new DefaultCardTransforms();
     }
 
     @Override
@@ -178,11 +173,21 @@ public class SlideCardPager extends ViewGroup {
                 MeasureSpec.makeMeasureSpec(groupHeight, heightMode));
     }
 
-    private CardHolder getCardHolderByGroupPos(int pos) {
+    /**
+     * 获取当前group中的对应位置的CardHolder
+     * @param pos 当前显示的对应位置
+     * @return CardHolder
+     */
+    public CardHolder getCardHolderByGroupPos(int pos) {
         return mCardRecyclePool.getHolderByView(getChildAt(pos));
     }
 
-    private CardHolder getCardHolderByAdapterPos(int pos) {
+    /**
+     * 获取适配器中对应的CardHolder
+     * @param pos 对应位置
+     * @return 对应的CardHolder
+     */
+    public CardHolder getCardHolderByAdapterPos(int pos) {
         return mCardRecyclePool.getHolderByPos(pos);
     }
 
@@ -466,6 +471,11 @@ public class SlideCardPager extends ViewGroup {
         mCurrentPos = pos;
     }
 
+    /**
+     * 处理拦截器
+     * @param currentPos 选中位置
+     * @return 是否拦截
+     */
     private boolean interceptorSelect(int currentPos) {
         if (mItemSelectInterceptor != null) {
             if (currentPos > -1 && currentPos < mCardAdapter.getItemCount()) {
@@ -536,6 +546,10 @@ public class SlideCardPager extends ViewGroup {
         populate(pos);
     }
 
+    /**
+     * 获取当前
+     * @return
+     */
     public CardHolder getCurrentCardHolder() {
         return getCardHolderByAdapterPos(mCurrentPos);
     }
@@ -610,134 +624,6 @@ public class SlideCardPager extends ViewGroup {
 
         @Size(4)
         int[] calculateLayout(View child, int state, @Size(4) int[] size);
-    }
-
-    /**
-     * 默认实现切换效果
-     */
-    private static class DefaultCardTransforms implements CardTransforms {
-
-        @Override
-        public void transforms(CardHolder holder, int currentState, int oldState, float percent) {
-            switch (currentState) {
-                case CardState.STATE_SELECTED:
-                    select(holder, oldState, percent);
-                    break;
-                case CardState.STATE_UNSELECTED_PRE:
-                case CardState.STATE_UNSELECTED_NEXT:
-                    unSelect(holder, currentState, oldState, percent);
-                    break;
-                case CardState.STATE_HIDE_LEFT:
-                case CardState.STATE_HIDE_RIGHT:
-                    hide(holder, currentState, oldState, percent);
-                    break;
-            }
-        }
-
-        private void select(CardHolder holder, float oldState, float percent) {
-            View view = holder.getContentView();
-            view.setRotation(0);
-            view.setAlpha(1);
-
-            float scale = (SCALE + (1 - SCALE) * percent);
-            view.setScaleX(scale);
-            view.setScaleY(scale);
-
-            int targetX = holder.getViewWidth() / 2;
-
-            int sign = oldState == CardState.STATE_UNSELECTED_PRE ? 1 : -1;
-            view.setTranslationX(-targetX * (1 - percent) * sign);
-        }
-
-        private void unSelect(CardHolder holder, int currentState, int oldState, float percent) {
-            View view = holder.getContentView();
-            int sign = currentState == CardState.STATE_UNSELECTED_NEXT ? 1 : -1;
-            if (oldState == CardState.STATE_SELECTED) {
-                view.setRotation(ANGLE * percent * sign);
-                view.setAlpha(1 - (1 - ALPHA) * percent);
-
-                float scale = 1 - (1 - SCALE) * percent;
-                view.setScaleX(scale);
-                view.setScaleY(scale);
-
-                int targetX = holder.getViewWidth() / 2;
-
-                view.setTranslationX(-targetX * (1 - percent) * sign);
-            } else {
-                view.setRotation(ANGLE * sign);
-                view.setAlpha(1 - (1 - ALPHA) * percent);
-                view.setScaleX(SCALE);
-                view.setScaleY(SCALE);
-                view.setTranslationX(0);
-            }
-        }
-
-        private void hide(CardHolder holder, int currentState, int oldState, float percent) {
-            View view = holder.getContentView();
-            int sign = currentState == CardState.STATE_HIDE_LEFT ? -1 : 1;
-            view.setRotation(ANGLE * sign);
-            if (oldState >= 3) {
-                view.setAlpha(ALPHA * (1 - percent));
-            } else {
-                view.setAlpha(0);
-            }
-            view.setScaleX(SCALE);
-            view.setScaleY(SCALE);
-            view.setTranslationX(0);
-        }
-
-        @Override
-        public TimeInterpolator getInterpolator(int currentState, int oldState) {
-            return null;
-        }
-
-        @Size(2)
-        @Override
-        public float[] getPivotPointOnMeasureFinish(View view) {
-            return new float[]{view.getMeasuredWidth() / 2, view.getMeasuredHeight()};
-        }
-
-        @Override
-        public long getDuration(int currentState, int oldState) {
-            return 400;
-        }
-
-        @Override
-        public int makeGroupHeight(int groupHeight, SlideCardPager touchCardView) {
-            int appendHeight = 0;
-            for (int i = 0; i < touchCardView.getChildCount(); i++) {
-                CardHolder cardHolder = touchCardView.getCardHolderByGroupPos(i);
-                int state = cardHolder.getViewCardState().state;
-                if (state == CardState.STATE_UNSELECTED_PRE
-                        || state == CardState.STATE_UNSELECTED_NEXT) {
-                    appendHeight = (int) (Math.sin(ANGLE / 180f * Math.PI) *
-                            cardHolder.getContentView().getMeasuredWidth() / 2);
-                    break;
-                }
-            }
-            return groupHeight + appendHeight;
-        }
-
-        @Override
-        public int makeGroupWidth(int groupWidth, SlideCardPager touchCardView) {
-            int appendWidth = 0;
-            for (int i = 0; i < touchCardView.getChildCount(); i++) {
-                CardHolder cardHolder = touchCardView.getCardHolderByGroupPos(i);
-                int viewCardState = cardHolder.getViewCardState().state;
-                if (viewCardState == CardState.STATE_UNSELECTED_PRE
-                        || viewCardState == CardState.STATE_UNSELECTED_NEXT) {
-                    appendWidth = (int) (Math.sin(ANGLE / 180f * Math.PI) *
-                            cardHolder.getContentView().getMeasuredHeight());
-                    break;
-                }
-            }
-            return groupWidth + appendWidth * 2;
-        }
-
-        @Override
-        public int[] calculateLayout(View child, int state, int[] size) {
-            return size;
-        }
     }
 
     /**
@@ -902,7 +788,8 @@ public class SlideCardPager extends ViewGroup {
 
 
     /**
-     * Holder接口，应该定义成抽象类，后期完善吧
+     * Holder接口，抽象类
+     * 主要功能：用于单个卡片的操作处理
      */
     public static abstract class CardHolder {
 

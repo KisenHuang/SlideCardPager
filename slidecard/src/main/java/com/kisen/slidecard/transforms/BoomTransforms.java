@@ -1,9 +1,9 @@
-package com.tal.kisen.slidecardpager.transforms;
+package com.kisen.slidecard.transforms;
 
 import android.animation.TimeInterpolator;
 import android.view.View;
 
-import com.tal.kisen.slidecardpager.SlideCardPager;
+import com.kisen.slidecard.SlideCardPager;
 
 /**
  * description:

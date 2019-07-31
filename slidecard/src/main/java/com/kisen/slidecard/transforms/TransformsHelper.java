@@ -1,4 +1,4 @@
-package com.tal.kisen.slidecardpager.transforms;
+package com.kisen.slidecard.transforms;
 
 import android.support.annotation.IntDef;
 import android.view.View;

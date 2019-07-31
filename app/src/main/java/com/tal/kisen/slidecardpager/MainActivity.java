@@ -7,7 +7,8 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.widget.TextView;
 
-import com.tal.kisen.slidecardpager.transforms.ZoomTransforms;
+import com.kisen.slidecard.SlideCardPager;
+import com.kisen.slidecard.transforms.ZoomTransforms;
 
 import java.util.ArrayList;
 import java.util.List;
