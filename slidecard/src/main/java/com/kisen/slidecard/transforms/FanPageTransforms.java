@@ -1,17 +1,19 @@
 package com.kisen.slidecard.transforms;
 
 import android.animation.TimeInterpolator;
+import android.support.annotation.Size;
 import android.view.View;
 
 import com.kisen.slidecard.SlideCardPager;
 
+
 /**
- * description:
- * author: Kisenhuang
- * email: Kisenhuang@163.com
- * time: 2019/7/31 下午11:14
+ * @author Huangwy
+ * @version ${VERSION}
+ * @title ${title}
+ * @date 2018/8/22 20:52
  */
-public class SectorCardTransforms implements SlideCardPager.CardTransforms {
+public class FanPageTransforms implements SlideCardPager.CardTransforms, TransformsHelper.TransformCall {
 
     private static final int ANGLE = 15;
     private static final float ALPHA = 0.7f;
@@ -19,22 +21,11 @@ public class SectorCardTransforms implements SlideCardPager.CardTransforms {
 
     @Override
     public void transforms(SlideCardPager.CardHolder holder, int currentState, int oldState, float percent) {
-        switch (currentState) {
-            case SlideCardPager.CardState.STATE_SELECTED:
-                select(holder, oldState, percent);
-                break;
-            case SlideCardPager.CardState.STATE_UNSELECTED_PRE:
-            case SlideCardPager.CardState.STATE_UNSELECTED_NEXT:
-                unSelect(holder, currentState, oldState, percent);
-                break;
-            case SlideCardPager.CardState.STATE_HIDE_LEFT:
-            case SlideCardPager.CardState.STATE_HIDE_RIGHT:
-                hide(holder, currentState, oldState, percent);
-                break;
-        }
+        TransformsHelper.transform(holder, currentState, oldState, percent, this);
     }
 
-    private void select(SlideCardPager.CardHolder holder, float oldState, float percent) {
+    @Override
+    public void select(SlideCardPager.CardHolder holder, int oldState, float percent) {
         View view = holder.getContentView();
         view.setRotation(0);
         view.setAlpha(1);
@@ -49,7 +40,8 @@ public class SectorCardTransforms implements SlideCardPager.CardTransforms {
         view.setTranslationX(-targetX * (1 - percent) * sign);
     }
 
-    private void unSelect(SlideCardPager.CardHolder holder, int currentState, int oldState, float percent) {
+    @Override
+    public void unSelect(SlideCardPager.CardHolder holder, int currentState, int oldState, float percent) {
         View view = holder.getContentView();
         int sign = currentState == SlideCardPager.CardState.STATE_UNSELECTED_NEXT ? 1 : -1;
         if (oldState == SlideCardPager.CardState.STATE_SELECTED) {
@@ -72,7 +64,8 @@ public class SectorCardTransforms implements SlideCardPager.CardTransforms {
         }
     }
 
-    private void hide(SlideCardPager.CardHolder holder, int currentState, int oldState, float percent) {
+    @Override
+    public void hide(SlideCardPager.CardHolder holder, int currentState, int oldState, float percent) {
         View view = holder.getContentView();
         int sign = currentState == SlideCardPager.CardState.STATE_HIDE_LEFT ? -1 : 1;
         view.setRotation(ANGLE * sign);
@@ -91,6 +84,7 @@ public class SectorCardTransforms implements SlideCardPager.CardTransforms {
         return null;
     }
 
+    @Size(2)
     @Override
     public float[] getPivotPointOnMeasureFinish(View view) {
         return new float[]{view.getMeasuredWidth() / 2, view.getMeasuredHeight()};
@@ -98,14 +92,14 @@ public class SectorCardTransforms implements SlideCardPager.CardTransforms {
 
     @Override
     public long getDuration(int currentState, int oldState) {
-        return 400;
+        return TransformsHelper.DURATION;
     }
 
     @Override
-    public int makeGroupHeight(int groupHeight, SlideCardPager slideCardPager) {
+    public int calculateGroupHeight(int groupHeight, SlideCardPager touchCardView) {
         int appendHeight = 0;
-        for (int i = 0; i < slideCardPager.getChildCount(); i++) {
-            SlideCardPager.CardHolder cardHolder = slideCardPager.getCardHolderByGroupPos(i);
+        for (int i = 0; i < touchCardView.getChildCount(); i++) {
+            SlideCardPager.CardHolder cardHolder = touchCardView.getCardHolderByGroupPos(i);
             int state = cardHolder.getViewCardState().getState();
             if (state == SlideCardPager.CardState.STATE_UNSELECTED_PRE
                     || state == SlideCardPager.CardState.STATE_UNSELECTED_NEXT) {
@@ -118,10 +112,10 @@ public class SectorCardTransforms implements SlideCardPager.CardTransforms {
     }
 
     @Override
-    public int makeGroupWidth(int groupWidth, SlideCardPager slideCardPager) {
+    public int calculateGroupWidth(int groupWidth, SlideCardPager touchCardView) {
         int appendWidth = 0;
-        for (int i = 0; i < slideCardPager.getChildCount(); i++) {
-            SlideCardPager.CardHolder cardHolder = slideCardPager.getCardHolderByGroupPos(i);
+        for (int i = 0; i < touchCardView.getChildCount(); i++) {
+            SlideCardPager.CardHolder cardHolder = touchCardView.getCardHolderByGroupPos(i);
             int viewCardState = cardHolder.getViewCardState().getState();
             if (viewCardState == SlideCardPager.CardState.STATE_UNSELECTED_PRE
                     || viewCardState == SlideCardPager.CardState.STATE_UNSELECTED_NEXT) {

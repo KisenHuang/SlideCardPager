@@ -1,10 +1,8 @@
 package com.kisen.slidecard.transforms;
 
-import android.support.annotation.IntDef;
 import android.view.View;
 
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
+import com.kisen.slidecard.SlideCardPager;
 
 /**
  * description:
@@ -15,28 +13,39 @@ import java.lang.annotation.RetentionPolicy;
 
 public class TransformsHelper {
 
-    public static final int CENTER = 0x00000001;
-    public static final int LEFT = 0x00010001;
-    public static final int TOP = LEFT << 1;
-    public static final int RIGHT = TOP << 1;
-    public static final int BOTTOM = RIGHT << 1;
+    public static final int DURATION = 400;
 
-    @Retention(RetentionPolicy.SOURCE)
-    @IntDef({CENTER, LEFT, TOP, RIGHT, BOTTOM})
-    public @interface PointGravity {
+    public static void transform(SlideCardPager.CardHolder holder, int currentState, int oldState, float percent, TransformCall call) {
+        if (call == null)
+            return;
+        switch (currentState) {
+            case SlideCardPager.CardState.STATE_SELECTED:
+                call.select(holder, oldState, percent);
+                break;
+            case SlideCardPager.CardState.STATE_UNSELECTED_PRE:
+            case SlideCardPager.CardState.STATE_UNSELECTED_NEXT:
+                call.unSelect(holder, currentState, oldState, percent);
+                break;
+            case SlideCardPager.CardState.STATE_HIDE_LEFT:
+            case SlideCardPager.CardState.STATE_HIDE_RIGHT:
+                call.hide(holder, currentState, oldState, percent);
+                break;
+        }
     }
 
-    public float[] getPivotPoint(View view, int gravity){
-        if ((gravity & CENTER) != 0){
+    public static int[] getViewMeasureSize(View view){
+        return new int[]{view.getMeasuredWidth(), view.getMeasuredHeight()};
+    }
 
-        }
-        switch (gravity) {
-            case CENTER:break;
-            case LEFT:break;
-            case TOP:break;
-            case RIGHT:break;
-            case BOTTOM:break;
-        }
-        return new float[]{view.getMeasuredWidth() / 2, view.getMeasuredHeight() / 2};
+    public static int calculateDefGroupSize(int size){
+        return size;
+    }
+
+    public interface TransformCall {
+        void select(SlideCardPager.CardHolder holder, int oldState, float percent);
+
+        void unSelect(SlideCardPager.CardHolder holder, int currentState, int oldState, float percent);
+
+        void hide(SlideCardPager.CardHolder holder, int currentState, int oldState, float percent);
     }
 }

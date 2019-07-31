@@ -112,8 +112,11 @@ public class SlideCardPager extends ViewGroup {
      * @param transforms
      */
     public void setTransforms(CardTransforms transforms) {
-        if (transforms != null && mCardTransforms != transforms)
+        if (transforms != null && mCardTransforms != transforms) {
             mCardTransforms = transforms;
+            removeAllViews();
+            setCurrent(0);
+        }
     }
 
     public void setOnSelectInterceptor(ItemSelectedInterceptor interceptor) {
@@ -157,7 +160,8 @@ public class SlideCardPager extends ViewGroup {
                 if (holder.getViewCardState().state == CardState.STATE_UNSELECTED_PRE
                         || holder.getViewCardState().state == CardState.STATE_UNSELECTED_NEXT) {
                     MarginLayoutParams layoutParams = (MarginLayoutParams) childAt.getLayoutParams();
-                    groupWidth += childAt.getMeasuredWidth() + layoutParams.leftMargin + layoutParams.rightMargin;
+                    groupWidth = childAt.getMeasuredWidth() + layoutParams.leftMargin + layoutParams.rightMargin;
+                    groupWidth = 2 * groupWidth;
                 }
             }
         }
@@ -165,9 +169,9 @@ public class SlideCardPager extends ViewGroup {
             groupWidth += getPaddingLeft() + getPaddingRight();
         if (mCardTransforms != null) {
             if (needComputeHeight)
-                groupHeight = mCardTransforms.makeGroupHeight(groupHeight, this);
+                groupHeight = mCardTransforms.calculateGroupHeight(groupHeight, this);
             if (needComputeWidth)
-                groupWidth = mCardTransforms.makeGroupWidth(groupWidth, this);
+                groupWidth = mCardTransforms.calculateGroupWidth(groupWidth, this);
         }
         setMeasuredDimension(MeasureSpec.makeMeasureSpec(groupWidth, widthMode),
                 MeasureSpec.makeMeasureSpec(groupHeight, heightMode));
@@ -500,9 +504,9 @@ public class SlideCardPager extends ViewGroup {
             cardHolder = poolView;
         } else {
             cardHolder = mCardAdapter.createCardViewHolder(this, pos);
-            cardHolder.setTransforms(mCardTransforms);
             mCardRecyclePool.addRecycleViewHolder(cardHolder);
         }
+        cardHolder.setTransforms(mCardTransforms);
         return cardHolder;
     }
 
@@ -609,19 +613,60 @@ public class SlideCardPager extends ViewGroup {
      */
     public interface CardTransforms {
 
+        /**
+         * 动画执行时Update方法
+         * <p>
+         * 注意：
+         * 执行动画时，所有View的状态已经更新
+         * View状态以currentState为准
+         * 此处在计算View位置的时候，View的默认位置是当前状态currentState的位置也就是切换之后的位置
+         * </p>
+         *
+         * @param holder       CardHolder 可以从其中获取View信息
+         * @param currentState 当前卡片的状态
+         * @param oldState     切换之前卡片的状态
+         * @param percent      当前动画执行百分比
+         */
         void transforms(CardHolder holder, int currentState, int oldState, float percent);
 
+        /**
+         * 添加动画时间拦截器
+         */
         TimeInterpolator getInterpolator(int currentState, int oldState);
 
+        /**
+         * 获取View动画处理的中心点
+         * 该方法在ViewOnMeasure后调用
+         */
         @Size(2)
         float[] getPivotPointOnMeasureFinish(View view);
 
+        /**
+         * 获取动画执行时间
+         */
         long getDuration(int currentState, int oldState);
 
-        int makeGroupHeight(int groupHeight, SlideCardPager slideCardPager);
+        /**
+         * 根据子布局计算父布局高度
+         * 如果父布局设置的是固定高度或match_parent则不会调用该方法
+         * @param groupHeight 默认父布局高度
+         */
+        int calculateGroupHeight(int groupHeight, SlideCardPager slideCardPager);
 
-        int makeGroupWidth(int groupWidth, SlideCardPager slideCardPager);
+        /**
+         * 根据子布局计算父布局宽度
+         * 如果父布局设置的是固定宽度或match_parent则不会调用该方法
+         * @param groupWidth 默认父布局宽度
+         */
+        int calculateGroupWidth(int groupWidth, SlideCardPager slideCardPager);
 
+        /**
+         * 该方法在父布局的onLayout时调用，需要子View针对自己的情况自己调整size
+         * @param child 子View
+         * @param state View的状态
+         * @param size view的左上右下
+         * @return 修正后的size
+         */
         @Size(4)
         int[] calculateLayout(View child, int state, @Size(4) int[] size);
     }

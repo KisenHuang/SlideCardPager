@@ -2,8 +2,8 @@ package com.tal.kisen.slidecardpager;
 
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
-import android.util.Log;
-import android.view.MotionEvent;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.TextView;
 
@@ -38,7 +38,7 @@ public class MainActivity extends AppCompatActivity {
     private List<CardData> createList() {
         List<CardData> list = new ArrayList<>();
         for (int i = 1; i < 11; i++) {
-            list.add(new CardData(i + "Card" + i, "Detail" + i));
+            list.add(new CardData("Card" + i, "Detail"));
         }
         return list;
     }
@@ -63,14 +63,24 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @Override
-    public boolean dispatchTouchEvent(MotionEvent ev) {
-        Log.e("MainActivity", "dispatch"+ev.getAction());
-        return super.dispatchTouchEvent(ev);
+    public boolean onCreateOptionsMenu(Menu menu) {
+        getMenuInflater().inflate(R.menu.menu_main, menu);
+        return super.onCreateOptionsMenu(menu);
     }
 
     @Override
-    public boolean onTouchEvent(MotionEvent event) {
-        Log.e("MainActivity", "onTouchEvent"+event.getAction());
-        return super.onTouchEvent(event);
+    public boolean onOptionsItemSelected(MenuItem item) {
+        switch (item.getItemId()) {
+            case R.id.action_type1:
+                touchCardView.setTransforms(new ZoomTransforms());
+                break;
+            case R.id.action_type2:
+                touchCardView.setTransforms(new BoomTransforms());
+                break;
+            case R.id.action_type3:
+                touchCardView.setTransforms(new FanPageTransforms());
+                break;
+        }
+        return super.onOptionsItemSelected(item);
     }
 }
