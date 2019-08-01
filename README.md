@@ -21,4 +21,35 @@
 - 前期思路：
 	1. 自定义ViewGroup实现多View排列样式
 	2. 属性动画实现切换效果
-	
+
+## How to use it
+
+使用和RecyclerView很相似
+
+在xml布局中
+
+```
+<com.kisen.slidecard.SlideCardPager
+    android:id="@+id/touch_view"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content" />
+```
+
+在class中
+
+```
+touchCardView.setTransforms(new ZoomTransforms());
+touchCardView.setAdapter(new SlideCardPager.CardAdapter<CardData>(R.layout.item_card, datas) {
+    @Override
+    protected void convert(SlideCardPager.CardHolder cardView, CardData data) {
+        View card = cardView.getContentView();
+        //数据适配
+        ...
+    }
+});
+```
+
+## Releases
+```
+    implementation 'com.kisen.slidecard:slidecard:1.0.0'
+```
