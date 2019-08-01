@@ -38,7 +38,9 @@
 在class中
 
 ```
+//设置切换动画效果
 touchCardView.setTransforms(new ZoomTransforms());
+//
 touchCardView.setAdapter(new SlideCardPager.CardAdapter<CardData>(R.layout.item_card, datas) {
     @Override
     protected void convert(SlideCardPager.CardHolder cardView, CardData data) {
