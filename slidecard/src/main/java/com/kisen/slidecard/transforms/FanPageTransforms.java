@@ -8,10 +8,10 @@ import com.kisen.slidecard.SlideCardPager;
 
 
 /**
- * @author Huangwy
- * @version ${VERSION}
- * @title ${title}
- * @date 2018/8/22 20:52
+ * description:
+ * author: KisenHuang
+ * email: KisenHuang@163.com
+ * time: 2018/8/22 下午8:52
  */
 public class FanPageTransforms implements SlideCardPager.CardTransforms, TransformsHelper.TransformCall {
 
