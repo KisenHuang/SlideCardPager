@@ -39,7 +39,10 @@ publish {
     userOrg = 'kisen'//组
     groupId = 'com.kisen.slidecard'//包名
     artifactId = 'slidecard'//bintray上的项目名
-    publishVersion = versionName//版本号
+    publishVersion = '1.0.1'//版本号
     desc = 'update project'//描述
     website = 'https://github.com/KisenHuang/SlideCardPager'
 }
+
+// 上传命令
+// ./gradlew clean build bintrayUpload -PbintrayUser=kisenhuang -PbintrayKey=<> -PdryRun=false
