@@ -15,6 +15,10 @@
 	1. CardTransforms
 	2. CardAdapter
 
+[查看版本信息][update_id]
+
+[update_id]: ./UpdateFile.md
+
 ## 构思，实现思路
 第一眼看到这个需求的时候，心里没底，没有现成的框架，没有见过相似的功能，只能靠着自己的理解一点点尝试。
 
