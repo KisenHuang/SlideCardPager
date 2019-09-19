@@ -1,7 +1,9 @@
 package com.tal.kisen.slidecardpager;
 
 import android.os.Bundle;
+import android.support.annotation.NonNull;
 import android.support.v7.app.AppCompatActivity;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -25,7 +27,7 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         touchCardView = findViewById(R.id.touch_view);
         touchCardView.setTransforms(new ZoomTransforms());
-        touchCardView.setAdapter(new SlideCardPager.CardAdapter<CardData>(R.layout.item_card, createList()) {
+        SlideCardPager.CardAdapter<CardData> adapter = new SlideCardPager.CardAdapter<CardData>(R.layout.item_card, createList()) {
             @Override
             protected void convert(SlideCardPager.CardHolder cardView, CardData data) {
                 View card = cardView.getContentView();
@@ -33,6 +35,14 @@ public class MainActivity extends AppCompatActivity {
                 TextView detail = card.findViewById(R.id.detail);
                 title.setText(data.name);
                 detail.setText(data.detail);
+            }
+        };
+        touchCardView.setAdapter(adapter);
+        adapter.setOnItemClickListener(new SlideCardPager.OnItemClickListener<CardData>() {
+            @Override
+            public void onItemClick(SlideCardPager.CardAdapter<CardData> adapter, View view, int state, int position) {
+                CardData itemData = adapter.getItemData(position);
+                Log.e("MainActivity", itemData != null?itemData.toString():"null");
             }
         });
     }
@@ -61,6 +71,12 @@ public class MainActivity extends AppCompatActivity {
         CardData(String name, String detail) {
             this.name = name;
             this.detail = detail;
+        }
+
+        @NonNull
+        @Override
+        public String toString() {
+            return "{ name=" + name + " detail=" + detail + "}";
         }
     }
 

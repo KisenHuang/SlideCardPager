@@ -344,7 +344,7 @@ public class SlideCardPager extends ViewGroup {
         int adapterItemCount = mCardAdapter.getItemCount();
         int childCount = getChildCount();
 
-        //用于记录滑动方向和填充方式
+        //用于记录滑动方向和填充方式,0:移除填充
         int touch = 0;
 
         //如果填充的位置与当前位置的差值超过1，清空所有重新填充
@@ -454,8 +454,6 @@ public class SlideCardPager extends ViewGroup {
                 //绑定数据
                 mCardAdapter.onBindCardViewHolder(cardHolder, sp);
 
-                addNewItem(cardHolder.getContentView());
-
                 //设置CardView状态
                 //该处不执行动画
                 if (sp == pos) {
@@ -482,6 +480,10 @@ public class SlideCardPager extends ViewGroup {
                     }
                 }
                 cardHolder.getViewCardState().position = sp;
+
+                //将试图插入指定位置
+                addNewItem(cardHolder.getContentView(), getViewLevel(cardHolder.mCurrentState.getState()));
+
                 sp++;
             }
         } else {
@@ -489,8 +491,8 @@ public class SlideCardPager extends ViewGroup {
                 if (adapterItemCount - 1 - pos > 1) {
                     CardHolder cardHolder = generateCardHolder(pos + 2);
                     mCardAdapter.onBindCardViewHolder(cardHolder, pos + 2);
-                    addNewItem(cardHolder.getContentView());
                     cardHolder.hide(true, -1);
+                    addNewItem(cardHolder.getContentView(), getViewLevel(cardHolder.mCurrentState.getState()));
                     cardHolder.getViewCardState().position = pos + 2;
                     if (mCardChangeListeners != null) {
                         for (OnCardChangeListener listener : mCardChangeListeners) {
@@ -503,8 +505,8 @@ public class SlideCardPager extends ViewGroup {
                 if (pos > 1) {//初始化左侧缓存位置的Holder
                     CardHolder cardHolder = generateCardHolder(pos - 2);
                     mCardAdapter.onBindCardViewHolder(cardHolder, pos - 2);
-                    addNewItem(cardHolder.getContentView());
                     cardHolder.hide(true, 1);
+                    addNewItem(cardHolder.getContentView(), getViewLevel(cardHolder.mCurrentState.getState()));
                     cardHolder.getViewCardState().position = pos - 2;
                     if (mCardChangeListeners != null) {
                         for (OnCardChangeListener listener : mCardChangeListeners) {
@@ -521,6 +523,33 @@ public class SlideCardPager extends ViewGroup {
             bringChildToFront(selected.getContentView());
 
         mCurrentPos = pos;
+    }
+
+    /**
+     * 获取当前视图插入层级
+     * <p>
+     * 这里只把左右两侧隐藏的两个视图放在最下层
+     * </p>
+     *
+     * @param state 视图对应状态
+     * @return 插入层级
+     */
+    private int getViewLevel(int state) {
+        int count = getChildCount();
+        int level = -1;
+        switch (state) {
+            case CardState.STATE_SELECTED:
+            case CardState.STATE_UNSELECTED_PRE:
+            case CardState.STATE_UNSELECTED_NEXT:
+                level = -1;
+                break;
+            case CardState.STATE_HIDE_LEFT:
+            case CardState.STATE_HIDE_RIGHT:
+                //group是空的放在最上层，否则插入到第一个的位置。
+                level = count > 0 ? 0 : -1;
+                break;
+        }
+        return level;
     }
 
     /**
@@ -560,6 +589,7 @@ public class SlideCardPager extends ViewGroup {
             mCardRecyclePool.addRecycleViewHolder(cardHolder);
         }
         cardHolder.setTransforms(mCardTransforms);
+        mCardAdapter.setListener(cardHolder);
         return cardHolder;
     }
 
@@ -568,8 +598,8 @@ public class SlideCardPager extends ViewGroup {
      *
      * @param view CardHolder对应的试图
      */
-    private void addNewItem(View view) {
-        addView(view, new MarginLayoutParams(view.getLayoutParams()));
+    private void addNewItem(View view, int position) {
+        addView(view, position, new MarginLayoutParams(view.getLayoutParams()));
     }
 
     /**
@@ -796,7 +826,7 @@ public class SlideCardPager extends ViewGroup {
         private int mLayoutResId;
         protected List<D> mDatas;
         protected Context mContext;
-        protected OnItemClickListener mItemClickListener;
+        protected OnItemClickListener<D> mItemClickListener;
 
         /**
          * 构造方法
@@ -826,6 +856,20 @@ public class SlideCardPager extends ViewGroup {
          */
         void unregisterObserver(AdapterObserver observer) {
             mObserver.remove(observer);
+        }
+
+        void setListener(final CardHolder cardViewHolder) {
+            cardViewHolder.getContentView().setOnClickListener(new OnClickListener() {
+                @SuppressWarnings("all")
+                @Override
+                public void onClick(View v) {
+                    CardAdapter<D> adapter = (CardAdapter<D>) cardViewHolder.mContentView.getTag();
+                    int adapterPosition = cardViewHolder.getAdapterPosition();
+                    if (mItemClickListener != null)
+                        mItemClickListener.onItemClick(adapter, v,
+                                cardViewHolder.getViewCardState().state, adapterPosition);
+                }
+            });
         }
 
         /**
@@ -885,14 +929,7 @@ public class SlideCardPager extends ViewGroup {
          * @param position       CardHolder对应的位置，在adapter中的位置
          */
         protected void onBindCardViewHolder(final CardHolder cardViewHolder, final int position) {
-            cardViewHolder.getContentView().setOnClickListener(new OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    if (mItemClickListener != null)
-                        mItemClickListener.onItemClick(CardAdapter.this, v,
-                                cardViewHolder.getViewCardState().state, position);
-                }
-            });
+            cardViewHolder.getContentView().setTag(this);
             if (position < mDatas.size())
                 convert(cardViewHolder, mDatas.get(position));
         }
@@ -939,7 +976,7 @@ public class SlideCardPager extends ViewGroup {
          *
          * @param listener 监听
          */
-        public void setOnItemClickListener(OnItemClickListener listener) {
+        public void setOnItemClickListener(OnItemClickListener<D> listener) {
             mItemClickListener = listener;
         }
     }
@@ -989,27 +1026,27 @@ public class SlideCardPager extends ViewGroup {
          * 设置为选中状态
          */
         public void select() {
-            state = STATE_SELECTED;
+            change(STATE_SELECTED);
         }
 
         /**
          * 设置为非选中状态
          */
         public void unSelect(int pre) {
-            if (pre > 0)
-                state = STATE_UNSELECTED_PRE;
-            else
-                state = STATE_UNSELECTED_NEXT;
+            if (pre > 0) change(STATE_UNSELECTED_PRE);
+            else change(STATE_UNSELECTED_NEXT);
         }
 
         /**
          * 设置为隐藏状态
          */
         public void hide(int pre) {
-            if (pre > 0)
-                state = STATE_HIDE_LEFT;
-            else
-                state = STATE_HIDE_RIGHT;
+            if (pre > 0) change(STATE_HIDE_LEFT);
+            else change(STATE_HIDE_RIGHT);
+        }
+
+        private void change(int newState) {
+            state = newState;
         }
 
         /**
@@ -1213,8 +1250,8 @@ public class SlideCardPager extends ViewGroup {
     /**
      * 卡片点击监听
      */
-    public interface OnItemClickListener {
-        void onItemClick(CardAdapter adapter, View view, int state, int position);
+    public interface OnItemClickListener<D> {
+        void onItemClick(CardAdapter<D> adapter, View view, int state, int position);
     }
 
     /**
