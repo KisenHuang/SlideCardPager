@@ -97,10 +97,7 @@ public class SlideCardPager extends ViewGroup {
             case MotionEvent.ACTION_MOVE:
                 float x = event.getX();
                 //判断本次滑动是否满足切换
-                if (Math.abs(mDownX - x) > MOVE_SIZE) {
-                    intercept = true;
-                } else
-                    intercept = false;
+                intercept = Math.abs(mDownX - x) > MOVE_SIZE;
                 break;
         }
         return intercept;
@@ -665,7 +662,7 @@ public class SlideCardPager extends ViewGroup {
      */
     private class CardRecyclePool {
 
-        private int poolSize = 5;
+        private static final int POOL_SIZE = 5;
         private SparseArray<CardHolder> recyclerPool = new SparseArray<>();
 
         /**
@@ -674,7 +671,7 @@ public class SlideCardPager extends ViewGroup {
          * @return 是否已满
          */
         private boolean isPoolFull() {
-            return recyclerPool.size() >= poolSize;
+            return recyclerPool.size() >= POOL_SIZE;
         }
 
         /**
@@ -1081,7 +1078,6 @@ public class SlideCardPager extends ViewGroup {
             return isRecycled() ? -1 : position;
         }
     }
-
 
     /**
      * Holder接口，抽象类
